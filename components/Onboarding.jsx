@@ -74,7 +74,7 @@ export default function Onboarding({ user, onComplete }) {
       </div>
 
       {/* Body */}
-      <div style={{ maxWidth: '500px', margin: '60px auto', padding: '0 20px' }}>
+      <div style={{ maxWidth: '500px', margin: '60px auto', padding: '0 20px', flex: 1 }}>
         {!mode ? (
           // Choice screen
           <>
