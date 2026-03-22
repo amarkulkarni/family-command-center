@@ -6,6 +6,129 @@ A private, shared inbox for two parents. Aggregates emails from both Gmail accou
 
 ---
 
+## Screenshots
+
+### Family Inbox — Main View
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🏠 Smith Family Inbox          👤 Dad (dad@gmail.com) | Sign out │
+├─────────────────────────────────────────────────────────────────┤
+│ 📧 Inbox | ⚙️ Settings                                          │
+├────────────────┬──────────────────────────────────────────────┤
+│ Category       │ Summary                                      │
+├────────────────┤ ───────────────────────────────────────────┤
+│ All            │ Subject: Permission slip due Friday         │
+│ 🏫 School      │ From: Mrs. Johnson (teacher)                │
+│ 🏥 Medical     │ Summary: Signed permission slip             │
+│ 💳 Payments    │ due by Friday for school trip              │
+│ 🎾 Activities  │                                            │
+│ 👥 PTA         │ 🔴 URGENT  📅 Due: 2026-03-22             │
+├────────────────┤ ───────────────────────────────────────────┤
+│ Source         │ Next message...                            │
+│ All            │                                            │
+│ Dad's Gmail    │ [Left: AI Summary]                        │
+│ Mom's Gmail    │ [Middle: Action Items Checklist]          │
+│ Family Bot     │ [Right: Key Dates Timeline]               │
+├────────────────┴──────────────────────────────────────────────┤
+│ Page: 1 / 5  ← Prev | Next →                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Inbox Detail Panel
+```
+┌──────────────────────────────────────────────────────┐
+│ [SCHOOL]  [🟡 This week]                             │
+│ Permission slip due Friday                           │
+│ Mrs. Johnson, Mar 21, 2026 3:45 PM                   │
+├──────────────────────────────────────────────────────┤
+│ SUMMARY                                              │
+│ Signed permission slip for school trip due Friday.   │
+│ Contact parent at XXX-XXXX for questions.            │
+├──────────────────────────────────────────────────────┤
+│ ACTION ITEMS                                         │
+│ ☐ Print and sign permission slip                     │
+│ ☐ Return to school office by Friday                  │
+│ ☐ Check if insurance form needed                     │
+├──────────────────────────────────────────────────────┤
+│ KEY DATES                                            │
+│ 📅 Permission slip due: Mar 22, 2026                 │
+│ 📅 School trip: Mar 25, 2026                         │
+├──────────────────────────────────────────────────────┤
+│ ORIGINAL MESSAGE                                     │
+│ Dear Parents,                                        │
+│ Your child's class is going on a field trip next     │
+│ week. Please sign the attached permission slip...    │
+└──────────────────────────────────────────────────────┘
+```
+
+### Settings — Connected Channels
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚙️ Settings              👤 Mom (mom@gmail.com) | Sign out      │
+├─────────────────────────────────────────────────────────────────┤
+│ 📧 Connected Channels | 🔗 Invite Code                         │
+├─────────────────────────────────────────────────────────────────┤
+│ ACTIVE                                                          │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ 📧 Dad's Gmail          ✓ Connected                        │ │
+│ │ Email: dad@gmail.com    Last message: Mar 21, 2026        │ │
+│ └────────────────────────────────────────────────────────────┘ │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ 💬 Family Bot (WhatsApp)  ✓ Connected                     │ │
+│ │ Messages: 12              Last message: Mar 21, 2026      │ │
+│ └────────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│ ADD MORE CHANNELS                                               │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ 📧 Gmail Forwarding                                ▶       │ │
+│ │ Capture family emails via Gmail filters                   │ │
+│ │                                                            │ │
+│ │ ▶ Set Up Gmail Forwarding                                 │ │
+│ └────────────────────────────────────────────────────────────┘ │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ 👩‍💻 WhatsApp Web Extension (Coming Soon)          ▶       │ │
+│ │ Capture forwarded messages from WhatsApp Web              │ │
+│ └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Onboarding — Create/Join Family Space
+```
+┌────────────────────────────────────────────────┐
+│ 🏠 Family Command Center                       │
+│ Welcome, Mom                                    │
+├────────────────────────────────────────────────┤
+│                                                │
+│      👨‍👩‍👧‍👦 Set up your family space               │
+│      A shared inbox where both parents see     │
+│      the same tasks, emails, and reminders.    │
+│                                                │
+│      [Create new family space]                 │
+│      [Join existing family space]              │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+### Onboarding — Invite Code Display
+```
+┌────────────────────────────────────────────────┐
+│ 🏠 Family Command Center                       │
+├────────────────────────────────────────────────┤
+│                                                │
+│         ✅ Family space created!                │
+│                                                │
+│         Share this code with your spouse:      │
+│      ┌──────────────────────────────┐          │
+│      │  A7F2K9                      │          │
+│      └──────────────────────────────┘          │
+│                                                │
+│         Loading your inbox...                  │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+---
+
 ## What It Does
 
 ```
