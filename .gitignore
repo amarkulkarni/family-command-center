@@ -1,4 +1,18 @@
 .next/
 node_modules/
 .env.local
+.env.local.*
 .DS_Store
+
+# Sensitive internal documentation (keep private)
+SETUP.md
+SETUP_*.md
+DEPLOYMENT_*.md
+database.sql
+INTERNAL_*.md
+SECURITY_NOTES.txt
+*.private.md
+
+# Private configuration
+.env.production.local
+secrets.json
