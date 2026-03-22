@@ -1,4 +1,4 @@
-import { twilio } from 'twilio'
+import twilio from 'twilio'
 import { createClient } from '@/lib/supabase/server'
 import { parseTwilio } from '@/lib/inbound/parseTwilio'
 import { categorizeMessage } from '@/lib/ai/categorize'

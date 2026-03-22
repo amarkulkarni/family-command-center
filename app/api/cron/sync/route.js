@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { categorizeMessage } from '@/lib/ai/categorize'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req) {
   try {
     // Validate cron secret

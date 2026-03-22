@@ -10,19 +10,19 @@ const CONNECTOR_INFO = {
     setupSteps: [
       {
         title: 'Create a forwarding email address',
-        description: 'You'll need to set up a forwarding filter in Gmail. This can be a simple email like "family-inbox@example.com" or use the provided forwarding address.',
+        description: "You'll need to set up a forwarding filter in Gmail. This can be a simple email like \"family-inbox@example.com\" or use the provided forwarding address.",
       },
       {
         title: 'Set up Gmail filter',
-        description: 'In Gmail, go to Settings → Filters and Blocked Addresses → Create a new filter. Set the criteria to match emails you want to track (e.g., from specific domains like @school.edu, @hospital.org).',
+        description: "In Gmail, go to Settings → Filters and Blocked Addresses → Create a new filter. Set the criteria to match emails you want to track (e.g., from specific domains like @school.edu, @hospital.org).",
       },
       {
         title: 'Configure forwarding',
-        description: 'In the filter action, select "Forward to" and enter the forwarding email address. The app will receive these emails and categorize them.',
+        description: "In the filter action, select \"Forward to\" and enter the forwarding email address. The app will receive these emails and categorize them.",
       },
       {
         title: 'Set up for spouse',
-        description: 'Repeat the process for your spouse\'s Gmail account to capture their emails too.',
+        description: "Repeat the process for your spouse's Gmail account to capture their emails too.",
       },
     ],
   },
