@@ -13,7 +13,20 @@ export default function Onboarding({ user, onComplete }) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/family-space/create', { method: 'POST' })
+      const supabase = (await import('@/lib/supabase/client')).createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('No authentication token')
+      }
+
+      const res = await fetch('/api/family-space/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
       if (!res.ok) throw new Error(await res.text())
       const { inviteCode } = await res.json()
       setCreatedCode(inviteCode)
@@ -33,9 +46,19 @@ export default function Onboarding({ user, onComplete }) {
     setLoading(true)
     setError('')
     try {
+      const supabase = (await import('@/lib/supabase/client')).createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('No authentication token')
+      }
+
       const res = await fetch('/api/family-space/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ inviteCode: inviteCode.trim().toUpperCase() }),
       })
       if (!res.ok) {

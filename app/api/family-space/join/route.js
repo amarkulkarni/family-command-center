@@ -1,14 +1,33 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-export async function POST(req) {
-  const supabase = createClient()
+export async function POST(request) {
+  const authHeader = request.headers.get('Authorization')
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // Create client with user's token
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  )
+
+  // Verify user is authenticated
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  const { inviteCode } = await req.json()
+  const { inviteCode } = await request.json()
 
   if (!inviteCode) {
     return new Response('Missing invite code', { status: 400 })

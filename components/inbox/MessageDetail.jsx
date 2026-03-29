@@ -46,25 +46,25 @@ export default function MessageDetail({ message }) {
             style={{
               padding: '4px 12px',
               borderRadius: '6px',
-              background: CATEGORY_COLORS[message.ai_category],
-              color: CATEGORY_TEXT_COLORS[message.ai_category],
+              background: CATEGORY_COLORS[message.category],
+              color: CATEGORY_TEXT_COLORS[message.category],
               fontSize: '12px',
               fontWeight: '600',
             }}
           >
-            {message.ai_category}
+            {message.category}
           </div>
           <div
             style={{
               padding: '4px 12px',
               borderRadius: '6px',
               background: '#F1F5F9',
-              color: URGENCY_COLORS[message.ai_urgency],
+              color: URGENCY_COLORS[message.urgency],
               fontSize: '12px',
               fontWeight: '600',
             }}
           >
-            {URGENCY_LABELS[message.ai_urgency]}
+            {URGENCY_LABELS[message.urgency]}
           </div>
         </div>
 
@@ -81,25 +81,25 @@ export default function MessageDetail({ message }) {
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
         {/* AI Summary */}
-        {message.ai_summary && (
+        {message.summary && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
               Summary
             </h3>
             <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6' }}>
-              {message.ai_summary}
+              {message.summary}
             </div>
           </div>
         )}
 
         {/* Action Items */}
-        {message.ai_action_items && message.ai_action_items.length > 0 && (
+        {message.action_items && message.action_items.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
               Action Items
             </h3>
             <div>
-              {message.ai_action_items.map((item, i) => (
+              {message.action_items.map((item, i) => (
                 <div
                   key={i}
                   style={{
@@ -126,13 +126,13 @@ export default function MessageDetail({ message }) {
         )}
 
         {/* Key Dates */}
-        {message.ai_key_dates && message.ai_key_dates.length > 0 && (
+        {message.key_dates && message.key_dates.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
               Key Dates
             </h3>
             <div>
-              {message.ai_key_dates.map((item, i) => (
+              {message.key_dates.map((item, i) => (
                 <div
                   key={i}
                   style={{

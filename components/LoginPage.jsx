@@ -1,16 +1,36 @@
 'use client'
 
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('test@fcc.com')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
   const handleLogin = async () => {
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    setLoading(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        setError(signInError.message)
+        setLoading(false)
+        return
+      }
+
+      // Session is stored in localStorage - API calls will send token via Authorization header
+      window.location.href = '/'
+    } catch (err) {
+      setError(err?.message || 'Login failed')
+      setLoading(false)
+    }
   }
 
   return (
@@ -46,35 +66,69 @@ export default function LoginPage() {
           fontSize: '15px',
           color: '#7A8A99',
           lineHeight: '1.6',
-          marginBottom: '36px',
+          marginBottom: '24px',
         }}>
-          One place for all family tasks, events,<br />
-          payments, and school reminders.
+          Test login (local development)
         </p>
+
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Email"
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginBottom: '12px',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+          }}
+        />
+
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          placeholder="Password"
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginBottom: '20px',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+          }}
+          onKeyPress={e => e.key === 'Enter' && handleLogin()}
+        />
 
         <button
           onClick={handleLogin}
+          disabled={loading || !password}
           style={{
             width: '100%',
             padding: '14px 20px',
-            background: '#1a2e4a',
+            background: loading || !password ? '#ccc' : '#1a2e4a',
             color: 'white',
             border: 'none',
             borderRadius: '12px',
             fontSize: '15px',
             fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
+            cursor: loading || !password ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s',
           }}
-          onMouseOver={e => e.currentTarget.style.background = '#0f1f33'}
-          onMouseOut={e => e.currentTarget.style.background = '#1a2e4a'}
+          onMouseOver={e => !loading && password && (e.currentTarget.style.background = '#0f1f33')}
+          onMouseOut={e => !loading && password && (e.currentTarget.style.background = '#1a2e4a')}
         >
-          <GoogleIcon />
-          Sign in with Google
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
+        {error && (
+          <p style={{ color: 'red', fontSize: '14px', marginTop: '12px' }}>
+            Error: {error}
+          </p>
+        )}
 
         <p style={{
           fontSize: '12px',

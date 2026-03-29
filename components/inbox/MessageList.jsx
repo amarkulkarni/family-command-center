@@ -70,26 +70,30 @@ export default function MessageList({
                     style={{
                       padding: '2px 8px',
                       borderRadius: '4px',
-                      background: CATEGORY_COLORS[message.ai_category],
-                      color: CATEGORY_TEXT_COLORS[message.ai_category],
+                      background: CATEGORY_COLORS[message.category],
+                      color: CATEGORY_TEXT_COLORS[message.category],
                       fontSize: '10px',
                       fontWeight: '600',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
                     }}
                   >
-                    {message.ai_category}
+                    {message.category}
                   </div>
                   <div
                     style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: URGENCY_COLORS[message.ai_urgency],
-                      marginTop: '4px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: URGENCY_COLORS[message.urgency],
+                      color: 'white',
+                      fontSize: '9px',
+                      fontWeight: '700',
+                      whiteSpace: 'nowrap',
                       flexShrink: 0,
                     }}
-                  />
+                  >
+                    {message.urgency}
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: '4px' }}>
@@ -119,7 +123,7 @@ export default function MessageList({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {message.ai_summary || message.snippet}
+                  {message.summary || message.snippet}
                 </div>
 
                 <div style={{ fontSize: '11px', color: '#CBD5E1', marginTop: '6px' }}>
