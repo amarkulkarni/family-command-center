@@ -78,8 +78,8 @@ const CATEGORY_LABELS = {
 
 // Hardcoded children config (will be replaced by database later)
 const CHILDREN = [
-  { name: 'Arjun', school: 'Dublin Elementary', grade: 'Grade 5', emoji: '\u26BE', color: '#085041', accentLight: '#9FE1CB' },
-  { name: 'Priya', school: 'Kolb Elementary', grade: 'Grade 2', emoji: '\uD83D\uDC83', color: '#633806', accentLight: '#FAC775' },
+  { name: 'Arjun', school: 'Dublin Elementary', grade: 'Grade 5', emoji: '\u26BE', color: '#127A66', accentLight: '#9FE1CB' },
+  { name: 'Priya', school: 'Kolb Elementary', grade: 'Grade 2', emoji: '\uD83D\uDC83', color: '#8C5414', accentLight: '#FAC775' },
 ]
 
 function matchChild(message) {
@@ -227,7 +227,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
         {/* AI Summary Banner */}
         <div style={{ margin: '20px 28px 0', borderRadius: '12px', overflow: 'hidden' }}>
           <div style={{
-            background: '#085041',
+            background: '#127A66',
             padding: '18px 24px',
             display: 'flex',
             flexDirection: 'column',
@@ -337,7 +337,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span
                         style={{
-                          fontSize: '12px', color: '#085041', fontWeight: '500',
+                          fontSize: '12px', color: '#127A66', fontWeight: '500',
                           padding: '4px 12px', borderRadius: '6px', border: '1px solid #E2E8F0',
                           cursor: 'pointer',
                         }}

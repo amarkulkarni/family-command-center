@@ -29,8 +29,8 @@ const CATEGORY_ICON_BG = {
 }
 
 const CHILDREN = [
-  { name: 'Arjun', color: '#085041', accentLight: '#9FE1CB', dotColor: '#16A34A' },
-  { name: 'Priya', color: '#633806', accentLight: '#FAC775', dotColor: '#D97706' },
+  { name: 'Arjun', color: '#127A66', accentLight: '#9FE1CB', dotColor: '#16A34A' },
+  { name: 'Priya', color: '#8C5414', accentLight: '#FAC775', dotColor: '#D97706' },
 ]
 
 function matchChild(message) {
@@ -130,7 +130,7 @@ export default function HorizonView({ messages, onSelectMessage }) {
           }).filter(Boolean)
           const isSelected = selectedWeekIndex === i
           const border = isSelected
-            ? '1.5px solid #085041'
+            ? '1.5px solid #127A66'
             : '1px solid #E2E8F0'
 
           return (
