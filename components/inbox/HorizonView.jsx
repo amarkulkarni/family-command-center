@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 const CATEGORY_ICONS = {
   SCHOOL: '\uD83D\uDCDA',
   MEDICAL: '\uD83C\uDFE5',
@@ -26,7 +28,6 @@ const CATEGORY_ICON_BG = {
   OTHER: '#FAEEDA',
 }
 
-// Hardcoded children config (matches InboxPage)
 const CHILDREN = [
   { name: 'Arjun', color: '#085041', accentLight: '#9FE1CB', dotColor: '#16A34A' },
   { name: 'Priya', color: '#633806', accentLight: '#FAC775', dotColor: '#D97706' },
@@ -43,7 +44,6 @@ function matchChild(message) {
 function getWeekRanges(count) {
   const weeks = []
   const now = new Date()
-  // Start from next week
   const startOfNextWeek = new Date(now)
   startOfNextWeek.setDate(now.getDate() + (7 - now.getDay()))
   startOfNextWeek.setHours(0, 0, 0, 0)
@@ -53,6 +53,7 @@ function getWeekRanges(count) {
     weekStart.setDate(startOfNextWeek.getDate() + i * 7)
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 6)
+    weekEnd.setHours(23, 59, 59, 999)
     weeks.push({ start: weekStart, end: weekEnd })
   }
   return weeks
@@ -63,13 +64,24 @@ function formatWeekLabel(start, end) {
   return `${start.toLocaleDateString('en-US', opts)}\u2013${end.toLocaleDateString('en-US', { day: 'numeric' })}`
 }
 
+function keyDateInWeek(dateStr, weekStart, weekEnd) {
+  const dd = new Date(dateStr)
+  dd.setHours(0, 0, 0, 0)
+  const ws = new Date(weekStart)
+  ws.setHours(0, 0, 0, 0)
+  const we = new Date(weekEnd)
+  we.setHours(23, 59, 59, 999)
+  return dd >= ws && dd <= we
+}
+
 export default function HorizonView({ messages, onSelectMessage }) {
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(null)
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const oneWeekOut = new Date(today)
   oneWeekOut.setDate(today.getDate() + 7)
 
-  // Future items: messages with any key_date > 7 days from now
   const futureItems = messages
     .filter(m => {
       if (!m.key_dates?.length) return false
@@ -81,26 +93,27 @@ export default function HorizonView({ messages, onSelectMessage }) {
       return aDate - bDate
     })
 
-  // Also show items with dates in the current week that haven't passed
   const allDatedItems = messages
     .filter(m => m.key_dates?.length > 0)
     .sort((a, b) => new Date(a.key_dates[0].date) - new Date(b.key_dates[0].date))
 
-  // Week pills with dot indicators
   const weeks = getWeekRanges(6)
 
   const getItemsInWeek = (weekStart, weekEnd) => {
     return allDatedItems.filter(m => {
-      return m.key_dates.some(d => {
-        const dd = new Date(d.date)
-        return dd >= weekStart && dd <= weekEnd
-      })
+      return m.key_dates.some(d => keyDateInWeek(d.date, weekStart, weekEnd))
     })
   }
 
+  const displayedItems =
+    selectedWeekIndex === null
+      ? futureItems
+      : futureItems.filter(m =>
+          m.key_dates.some(d => keyDateInWeek(d.date, weeks[selectedWeekIndex].start, weeks[selectedWeekIndex].end))
+        )
+
   return (
     <div>
-      {/* Week strip */}
       <div style={{
         display: 'flex', gap: '12px', overflowX: 'auto',
         padding: '4px 0 16px', marginBottom: '20px',
@@ -115,15 +128,22 @@ export default function HorizonView({ messages, onSelectMessage }) {
             })
             return hasItem ? child : null
           }).filter(Boolean)
+          const isSelected = selectedWeekIndex === i
+          const border = isSelected
+            ? '1.5px solid #085041'
+            : '1px solid #E2E8F0'
 
           return (
-            <div
+            <button
               key={i}
+              type="button"
+              onClick={() => setSelectedWeekIndex(prev => (prev === i ? null : i))}
               style={{
                 minWidth: '120px', padding: '12px 16px',
                 background: 'white', borderRadius: '10px',
-                border: weekItems.length > 0 ? '1.5px solid #085041' : '1px solid #E2E8F0',
-                textAlign: 'center', flexShrink: 0, cursor: 'default',
+                border,
+                textAlign: 'center', flexShrink: 0, cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a2e4a', marginBottom: '6px' }}>
@@ -146,15 +166,35 @@ export default function HorizonView({ messages, onSelectMessage }) {
                   <div style={{ fontSize: '10px', color: '#CBD5E1' }}>{'\u2014'}</div>
                 )}
               </div>
-            </div>
+            </button>
           )
         })}
       </div>
 
-      {/* Future items list */}
-      {futureItems.length > 0 ? (
+      {futureItems.length === 0 ? (
+        <div style={{
+          padding: '48px 20px', textAlign: 'center', color: '#94A3B8',
+          background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0',
+        }}>
+          <div style={{ fontSize: '36px', marginBottom: '8px' }}>{'\uD83D\uDCC5'}</div>
+          <div style={{ fontSize: '14px' }}>No upcoming items beyond this week</div>
+          <div style={{ fontSize: '12px', marginTop: '4px', color: '#CBD5E1' }}>
+            Items with dates more than 7 days out will appear here
+          </div>
+        </div>
+      ) : displayedItems.length === 0 ? (
+        <div style={{
+          padding: '48px 20px', textAlign: 'center', color: '#94A3B8',
+          background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0',
+        }}>
+          <div style={{ fontSize: '14px' }}>No items in this week (beyond the 7-day horizon)</div>
+          <div style={{ fontSize: '12px', marginTop: '8px', color: '#CBD5E1' }}>
+            Tap another week or clear selection to see all upcoming items
+          </div>
+        </div>
+      ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {futureItems.map(msg => {
+          {displayedItems.map(msg => {
             const childName = matchChild(msg)
             const childConfig = CHILDREN.find(c => c.name === childName)
             const dueDate = new Date(msg.key_dates[0].date)
@@ -173,7 +213,6 @@ export default function HorizonView({ messages, onSelectMessage }) {
                 onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'white' }}
               >
-                {/* Category icon */}
                 <div style={{
                   width: '34px', height: '34px', borderRadius: '8px',
                   background: CATEGORY_ICON_BG[msg.category] || '#F1F5F9',
@@ -183,11 +222,10 @@ export default function HorizonView({ messages, onSelectMessage }) {
                   {CATEGORY_ICONS[msg.category] || '\uD83D\uDCCB'}
                 </div>
 
-                {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: '13px', fontWeight: '600', color: '#1a2e4a', marginBottom: '3px',
-                    display: 'flex', alignItems: 'center', gap: '8px',
+                    display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
                   }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {msg.subject}
@@ -212,7 +250,6 @@ export default function HorizonView({ messages, onSelectMessage }) {
                     {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
                   </div>
 
-                  {/* Action deadline warning */}
                   {msg.action_items?.length > 0 && diffDays > 3 && diffDays <= 14 && (
                     <div style={{
                       marginTop: '6px', fontSize: '11px', color: '#854F0B',
@@ -224,7 +261,6 @@ export default function HorizonView({ messages, onSelectMessage }) {
                   )}
                 </div>
 
-                {/* Right side: due date */}
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: '12px', color: '#1a2e4a', fontWeight: '500' }}>
                     {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -241,17 +277,6 @@ export default function HorizonView({ messages, onSelectMessage }) {
               </div>
             )
           })}
-        </div>
-      ) : (
-        <div style={{
-          padding: '48px 20px', textAlign: 'center', color: '#94A3B8',
-          background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0',
-        }}>
-          <div style={{ fontSize: '36px', marginBottom: '8px' }}>{'\uD83D\uDCC5'}</div>
-          <div style={{ fontSize: '14px' }}>No upcoming items beyond this week</div>
-          <div style={{ fontSize: '12px', marginTop: '4px', color: '#CBD5E1' }}>
-            Items with dates more than 7 days out will appear here
-          </div>
         </div>
       )}
     </div>

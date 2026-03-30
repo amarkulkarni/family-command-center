@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '../Header'
 import MessageDetail from './MessageDetail'
+import HorizonView from './HorizonView'
 
 const CATEGORY_COLORS = {
   SCHOOL: '#DBEAFE',
@@ -391,6 +392,14 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
         </div>
         <div style={{ margin: '0 28px', borderBottom: '1px solid #E2E8F0' }} />
 
+        {activeTab === 'comingUp' && (
+          <div style={{ padding: '24px 28px 32px' }}>
+            <HorizonView messages={messages} onSelectMessage={setSelectedMessage} />
+          </div>
+        )}
+
+        {activeTab === 'thisWeek' && (
+        <>
         {/* Side-by-side child columns */}
         <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
           {CHILDREN.map(child => {
@@ -624,9 +633,11 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
             </div>
           </div>
         )}
+        </>
+        )}
 
-        {/* Empty state */}
-        {messages.length === 0 && (
+        {/* Empty state (This week only; Coming up uses HorizonView empty state) */}
+        {messages.length === 0 && activeTab === 'thisWeek' && (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94A3B8' }}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>{'\u2728'}</div>
             <div style={{ fontSize: '16px' }}>All caught up!</div>
