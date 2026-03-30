@@ -36,10 +36,75 @@ const URGENCY_COLORS = {
   LOW: '#6B7280',
 }
 
+const CATEGORY_ICONS = {
+  SCHOOL: '\uD83D\uDCDA',
+  MEDICAL: '\uD83C\uDFE5',
+  ACTIVITIES: '\uD83D\uDC83',
+  PAYMENTS: '\uD83D\uDCB0',
+  PTA: '\uD83C\uDFEB',
+  APPOINTMENTS: '\uD83D\uDCC5',
+  NEWSLETTER: '\uD83D\uDCF0',
+  PERSONAL: '\uD83D\uDC64',
+  ADMIN: '\uD83D\uDCCB',
+  OTHER: '\uD83D\uDCCB',
+}
+
+const CATEGORY_ICON_BG = {
+  SCHOOL: '#E6F1FB',
+  MEDICAL: '#FCEBEB',
+  ACTIVITIES: '#EEEDFE',
+  PAYMENTS: '#FEF3C7',
+  PTA: '#F3E8FF',
+  APPOINTMENTS: '#CCFBF1',
+  NEWSLETTER: '#F1F5F9',
+  PERSONAL: '#F1F5F9',
+  ADMIN: '#FAEEDA',
+  OTHER: '#FAEEDA',
+}
+
+const CATEGORY_LABELS = {
+  SCHOOL: 'School',
+  MEDICAL: 'Medical',
+  ACTIVITIES: 'Activities',
+  PAYMENTS: 'Payments',
+  PTA: 'PTA',
+  APPOINTMENTS: 'Appointments',
+  NEWSLETTER: 'Newsletter',
+  PERSONAL: 'Personal',
+  ADMIN: 'Admin',
+  OTHER: 'Other',
+}
+
+// Hardcoded children config (will be replaced by database later)
+const CHILDREN = [
+  { name: 'Arjun', school: 'Dublin Elementary', grade: 'Grade 5', emoji: '\u26BE', color: '#085041', accentLight: '#9FE1CB' },
+  { name: 'Priya', school: 'Kolb Elementary', grade: 'Grade 2', emoji: '\uD83D\uDC83', color: '#633806', accentLight: '#FAC775' },
+]
+
+function matchChild(message) {
+  const text = `${message.subject || ''} ${message.summary || ''} ${(message.action_items || []).join(' ')}`.toLowerCase()
+  for (const child of CHILDREN) {
+    if (text.includes(child.name.toLowerCase())) return child.name
+  }
+  return null
+}
+
+function getDueBadge(message) {
+  if (!message.key_dates?.length) return null
+  const dueDate = new Date(message.key_dates[0].date)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) return { text: 'Due today', color: '#DC2626', urgent: true }
+  if (diffDays <= 2) return { text: `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`, color: '#D97706', urgent: false }
+  return { text: `In ${diffDays} days`, color: '#6B7280', urgent: false }
+}
+
 export default function InboxPage({ user, familySpaceId, familySpace, connectors, messages: initialMessages }) {
   const [messages, setMessages] = useState(initialMessages || [])
   const [selectedMessage, setSelectedMessage] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('thisWeek')
+  const [filters, setFilters] = useState({})
 
   useEffect(() => {
     if (initialMessages) {
@@ -76,76 +141,60 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
     })
   }).length
 
-  const MessageItem = ({ message, isSelected }) => (
-    <div
-      onClick={() => setSelectedMessage(message)}
-      style={{
-        padding: '12px 14px',
-        borderBottom: '1px solid #F1F5F9',
-        cursor: 'pointer',
-        background: isSelected ? '#F0F4F8' : 'white',
-        transition: 'background 0.2s',
-        borderLeft: isSelected ? `3px solid ${URGENCY_COLORS[message.urgency]}` : 'none',
-      }}
-    >
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
-        <div
-          style={{
-            padding: '2px 6px',
-            borderRadius: '3px',
-            background: CATEGORY_COLORS[message.category],
-            color: CATEGORY_TEXT_COLORS[message.category],
-            fontSize: '9px',
-            fontWeight: '600',
-          }}
-        >
-          {message.category}
-        </div>
-        <div
-          style={{
-            padding: '2px 6px',
-            borderRadius: '3px',
-            background: URGENCY_COLORS[message.urgency],
-            color: 'white',
-            fontSize: '8px',
-            fontWeight: '700',
-          }}
-        >
-          {message.urgency}
-        </div>
-      </div>
+  // Group messages by child
+  const messagesByChild = {}
+  const familyMessages = []
+  CHILDREN.forEach(c => { messagesByChild[c.name] = [] })
 
-      <div style={{ marginBottom: '3px' }}>
-        <div
-          style={{
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#1a2e4a',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {message.subject}
-        </div>
-      </div>
+  messages.forEach(msg => {
+    const childName = matchChild(msg)
+    if (childName && messagesByChild[childName]) {
+      messagesByChild[childName].push(msg)
+    } else {
+      familyMessages.push(msg)
+    }
+  })
 
-      {message.action_items?.length > 0 && (
-        <div style={{ fontSize: '11px', color: '#475569', marginBottom: '2px' }}>
-          {message.action_items.length} action{message.action_items.length > 1 ? 's' : ''}
-        </div>
-      )}
+  // Greeting
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const userName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
-      {message.key_dates?.length > 0 && (
-        <div style={{ fontSize: '10px', color: '#0D9488', fontWeight: '600' }}>
-          📅 {new Date(message.key_dates[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-        </div>
-      )}
-    </div>
-  )
+  // AI summary
+  const totalActionItems = urgent.length + medium.length
+  const mostUrgentWithDate = [...urgent, ...medium]
+    .filter(m => m.key_dates?.length > 0)
+    .sort((a, b) => new Date(a.key_dates[0].date) - new Date(b.key_dates[0].date))[0]
+
+  const summaryText = totalActionItems > 0
+    ? `${totalActionItems} item${totalActionItems !== 1 ? 's' : ''} this week across Arjun and Priya. ${urgent.length > 0 ? `${urgent.length} need${urgent.length === 1 ? 's' : ''} immediate attention.` : 'Nothing urgent right now.'}`
+    : 'All caught up \u2014 no action items this week.'
+
+  // Attention items: HIGH urgency + MEDIUM with dates, sorted by earliest date
+  const attentionItems = [...urgent, ...medium.filter(m => m.key_dates?.length > 0)]
+    .sort((a, b) => {
+      const aDate = a.key_dates?.[0]?.date ? new Date(a.key_dates[0].date) : new Date('2099-01-01')
+      const bDate = b.key_dates?.[0]?.date ? new Date(b.key_dates[0].date) : new Date('2099-01-01')
+      return aDate - bDate
+    })
+    .slice(0, 6)
+
+  // Per-child filter helpers
+  const getFilteredMessages = (childName) => {
+    const msgs = messagesByChild[childName] || []
+    const activeFilter = filters[childName] || 'ALL'
+    if (activeFilter === 'ALL') return msgs.sort((a, b) => new Date(b.received_at) - new Date(a.received_at))
+    return msgs.filter(m => m.category === activeFilter).sort((a, b) => new Date(b.received_at) - new Date(a.received_at))
+  }
+
+  const getChildCategories = (childName) => {
+    const msgs = messagesByChild[childName] || []
+    return [...new Set(msgs.map(m => m.category))]
+  }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F7F5F0', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: '#F7F5F0' }}>
       <Header
         user={user}
         title="Home"
@@ -153,95 +202,484 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
         showNav={true}
       />
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left panel: Message list with stats */}
-        <div style={{ flex: '0 0 40%', borderRight: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', background: 'white', overflow: 'auto' }}>
-          {/* Stat tiles */}
-          <div style={{ padding: '16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-              <div style={{ background: 'white', padding: '12px', borderRadius: '6px', textAlign: 'center', borderTop: '2px solid #DC2626' }}>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#DC2626' }}>{urgent.length}</div>
-                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Urgent</div>
-              </div>
-              <div style={{ background: 'white', padding: '12px', borderRadius: '6px', textAlign: 'center', borderTop: '2px solid #D97706' }}>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#D97706' }}>{dueToday}</div>
-                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Due Today</div>
-              </div>
-              <div style={{ background: 'white', padding: '12px', borderRadius: '6px', textAlign: 'center', borderTop: '2px solid #0D9488' }}>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#0D9488' }}>{dueThisWeek}</div>
-                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>This Week</div>
-              </div>
-            </div>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        {/* Greeting bar */}
+        <div style={{ padding: '24px 28px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '22px', fontWeight: '700', color: '#1a2e4a' }}>
+              {greeting}, {userName}
+            </span>
+            <span style={{ fontSize: '22px', color: '#94A3B8', marginLeft: '12px' }}>
+              &mdash; {dateStr}
+            </span>
           </div>
-
-          {/* Message groups */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            {/* Urgent section */}
-            {urgent.length > 0 && (
-              <div>
-                <div style={{ padding: '12px 14px', background: '#FEE2E2', fontWeight: '700', color: '#991B1B', fontSize: '11px', textTransform: 'uppercase' }}>
-                  🔴 URGENT ({urgent.length})
-                </div>
-                {urgent.map(msg => (
-                  <MessageItem key={msg.id} message={msg} isSelected={selectedMessage?.id === msg.id} />
-                ))}
-              </div>
-            )}
-
-            {/* Medium section */}
-            {medium.length > 0 && (
-              <div>
-                <div style={{ padding: '12px 14px', background: '#FEF3C7', fontWeight: '700', color: '#92400E', fontSize: '11px', textTransform: 'uppercase' }}>
-                  🟡 THIS WEEK ({medium.length})
-                </div>
-                {medium.map(msg => (
-                  <MessageItem key={msg.id} message={msg} isSelected={selectedMessage?.id === msg.id} />
-                ))}
-              </div>
-            )}
-
-            {/* Informational section */}
-            {informational.length > 0 && (
-              <div>
-                <div style={{ padding: '12px 14px', background: '#DBEAFE', fontWeight: '700', color: '#1D4ED8', fontSize: '11px', textTransform: 'uppercase' }}>
-                  🔵 INFORMATIONAL ({informational.length})
-                </div>
-                {informational.map(msg => (
-                  <MessageItem key={msg.id} message={msg} isSelected={selectedMessage?.id === msg.id} />
-                ))}
-              </div>
-            )}
-
-            {messages.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94A3B8' }}>
-                <div style={{ fontSize: '36px', marginBottom: '8px' }}>✨</div>
-                <div>All caught up!</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right panel: Message detail */}
-        <div style={{ flex: '0 0 60%', background: 'white', display: 'flex', flexDirection: 'column' }}>
-          {selectedMessage ? (
-            <MessageDetail message={selectedMessage} />
-          ) : (
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#94A3B8',
-                fontSize: '14px',
-              }}
-            >
-              {messages.length === 0 ? '📭 No messages' : '← Select a message'}
+          {urgent.length > 0 && (
+            <div style={{
+              padding: '6px 16px', borderRadius: '20px', border: '1px solid #E2E8F0',
+              fontSize: '13px', color: '#64748B', background: 'white',
+            }}>
+              {urgent.length} need action today
             </div>
           )}
         </div>
+
+        {/* AI Summary Banner */}
+        <div style={{ margin: '20px 28px 0', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{
+            background: '#085041',
+            padding: '18px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'rgba(255,255,255,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '16px', flexShrink: 0,
+              }}>
+                {'\uD83E\uDD16'}
+              </div>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: '700', color: '#9FE1CB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+                  AI SUMMARY
+                </div>
+                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.5' }}>
+                  {summaryText}
+                </div>
+              </div>
+            </div>
+
+            {mostUrgentWithDate && (
+              <div
+                onClick={() => setSelectedMessage(mostUrgentWithDate)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  background: 'rgba(220, 38, 38, 0.15)',
+                  border: '1px solid rgba(220, 38, 38, 0.3)',
+                  borderRadius: '6px', padding: '8px 14px',
+                  cursor: 'pointer', marginLeft: '44px', alignSelf: 'flex-start',
+                }}
+              >
+                <span style={{ fontSize: '12px' }}>{'\u26A0\uFE0F'}</span>
+                <span style={{ fontSize: '12px', color: '#FCA5A5', fontWeight: '500' }}>
+                  {mostUrgentWithDate.subject} &mdash; due {new Date(mostUrgentWithDate.key_dates[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {'\u2192'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* NEEDS YOUR ATTENTION */}
+        {attentionItems.length > 0 && (
+          <div style={{ padding: '24px 28px 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: '700', color: '#64748B',
+              textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '14px',
+            }}>
+              NEEDS YOUR ATTENTION
+            </div>
+            <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
+              {attentionItems.map(msg => {
+                const childName = matchChild(msg)
+                const childConfig = CHILDREN.find(c => c.name === childName)
+                const dueBadge = getDueBadge(msg)
+                return (
+                  <div
+                    key={msg.id}
+                    onClick={() => setSelectedMessage(msg)}
+                    style={{
+                      minWidth: '260px', maxWidth: '300px', padding: '16px',
+                      background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0',
+                      cursor: 'pointer',
+                      borderLeft: `3px solid ${msg.urgency === 'HIGH' ? '#DC2626' : '#D97706'}`,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {/* Top row: due badge + child tag */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      {dueBadge ? (
+                        <span style={{
+                          fontSize: '11px', fontWeight: '600', color: dueBadge.color,
+                          background: dueBadge.color + '18', padding: '3px 10px', borderRadius: '10px',
+                        }}>
+                          {dueBadge.urgent ? '\uD83D\uDD34' : '\uD83D\uDFE1'} {dueBadge.text}
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: '11px', fontWeight: '600', color: '#D97706',
+                          background: '#FEF3C7', padding: '3px 10px', borderRadius: '10px',
+                        }}>
+                          {'\uD83D\uDFE1'} Needs response
+                        </span>
+                      )}
+                      {childConfig && (
+                        <span style={{
+                          fontSize: '11px', fontWeight: '500', color: childConfig.color,
+                          background: childConfig.accentLight, padding: '3px 10px', borderRadius: '10px',
+                        }}>
+                          {childConfig.name}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title + summary */}
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#1a2e4a', marginBottom: '4px', lineHeight: '1.3' }}>
+                      {msg.subject}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '14px', lineHeight: '1.4' }}>
+                      {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
+                    </div>
+
+                    {/* Bottom: action buttons + channel badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '12px', color: '#085041', fontWeight: '500',
+                          padding: '4px 12px', borderRadius: '6px', border: '1px solid #E2E8F0',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        View
+                      </span>
+                      <span style={{
+                        fontSize: '10px', padding: '3px 10px', borderRadius: '10px',
+                        background: '#E6F1FB', color: '#185FA5',
+                      }}>
+                        {'\u2709\uFE0F'} Email
+                      </span>
+                    </div>
+
+                    {/* Due line */}
+                    {dueBadge && (
+                      <div style={{ fontSize: '11px', color: dueBadge.color, fontWeight: '500', marginTop: '8px' }}>
+                        {'\u2192'} {dueBadge.text}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Tab switcher: This week / Coming up */}
+        <div style={{ padding: '24px 28px 0', display: 'flex', gap: '28px' }}>
+          <button
+            onClick={() => setActiveTab('thisWeek')}
+            style={{
+              padding: '10px 0', fontSize: '15px', fontWeight: '600',
+              border: 'none', background: 'none', cursor: 'pointer',
+              color: activeTab === 'thisWeek' ? '#1a2e4a' : '#94A3B8',
+              borderBottom: activeTab === 'thisWeek' ? '2px solid #1a2e4a' : '2px solid transparent',
+            }}
+          >
+            This week
+          </button>
+          <button
+            onClick={() => setActiveTab('comingUp')}
+            style={{
+              padding: '10px 0', fontSize: '15px', fontWeight: '600',
+              border: 'none', background: 'none', cursor: 'pointer',
+              color: activeTab === 'comingUp' ? '#1a2e4a' : '#94A3B8',
+              borderBottom: activeTab === 'comingUp' ? '2px solid #1a2e4a' : '2px solid transparent',
+            }}
+          >
+            Coming up
+          </button>
+        </div>
+        <div style={{ margin: '0 28px', borderBottom: '1px solid #E2E8F0' }} />
+
+        {/* Side-by-side child columns */}
+        <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+          {CHILDREN.map(child => {
+            const filteredMsgs = getFilteredMessages(child.name)
+            const categories = getChildCategories(child.name)
+            const activeFilter = filters[child.name] || 'ALL'
+            const childUrgent = (messagesByChild[child.name] || []).filter(m => m.urgency === 'HIGH')
+
+            return (
+              <div key={child.name} style={{
+                background: 'white', borderRadius: '16px', overflow: 'hidden',
+                border: '1px solid #E2E8F0',
+              }}>
+                {/* Dark header */}
+                <div style={{
+                  background: child.color, padding: '20px 24px',
+                  display: 'flex', gap: '14px', alignItems: 'center',
+                }}>
+                  <div style={{
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '22px', flexShrink: 0,
+                  }}>
+                    {child.emoji}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{child.name}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                      {child.grade} {'\u00B7'} {child.school}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats bar */}
+                <div style={{
+                  padding: '10px 24px 14px', background: child.color,
+                  display: 'flex', gap: '20px',
+                }}>
+                  <span style={{ fontSize: '12px', color: child.accentLight, fontWeight: '600' }}>
+                    {(messagesByChild[child.name] || []).length} items this week
+                  </span>
+                  {childUrgent.length > 0 && (
+                    <span style={{ fontSize: '12px', color: child.accentLight, fontWeight: '600' }}>
+                      {childUrgent.length} action needed
+                    </span>
+                  )}
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ padding: '16px 20px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setFilters(f => ({ ...f, [child.name]: 'ALL' }))}
+                    style={{
+                      padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: '600',
+                      cursor: 'pointer',
+                      border: `1.5px solid ${activeFilter === 'ALL' ? child.color : child.accentLight}`,
+                      background: activeFilter === 'ALL' ? child.color : 'transparent',
+                      color: activeFilter === 'ALL' ? child.accentLight : child.color,
+                    }}
+                  >
+                    All
+                  </button>
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setFilters(f => ({ ...f, [child.name]: cat }))}
+                      style={{
+                        padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                        border: `1.5px solid ${activeFilter === cat ? child.color : child.accentLight}`,
+                        background: activeFilter === cat ? child.color : 'transparent',
+                        color: activeFilter === cat ? child.accentLight : child.color,
+                      }}
+                    >
+                      {CATEGORY_ICONS[cat]} {CATEGORY_LABELS[cat] || cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Message items */}
+                <div>
+                  {filteredMsgs.length > 0 ? filteredMsgs.map(msg => {
+                    const dueBadge = getDueBadge(msg)
+                    return (
+                      <div
+                        key={msg.id}
+                        onClick={() => setSelectedMessage(msg)}
+                        style={{
+                          padding: '14px 20px', borderTop: '1px solid #F1F5F9',
+                          cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'flex-start',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >
+                        {/* Category icon tile */}
+                        <div style={{
+                          width: '34px', height: '34px', borderRadius: '8px',
+                          background: CATEGORY_ICON_BG[msg.category] || '#F1F5F9',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '16px', flexShrink: 0, marginTop: '2px',
+                        }}>
+                          {CATEGORY_ICONS[msg.category] || '\uD83D\uDCCB'}
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontSize: '13px', fontWeight: '600', color: '#1a2e4a', marginBottom: '3px',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {msg.subject}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                              {(msg.summary || '').substring(0, 60)}{(msg.summary || '').length > 60 ? '...' : ''}
+                            </span>
+                            <span style={{
+                              fontSize: '9px', padding: '1px 6px', borderRadius: '8px',
+                              background: '#E6F1FB', color: '#185FA5', flexShrink: 0,
+                            }}>
+                              {'\u2709\uFE0F'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Right side: date + due badge */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          {msg.key_dates?.[0] && (
+                            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
+                              {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
+                            </div>
+                          )}
+                          {dueBadge && (
+                            <div style={{
+                              fontSize: '10px', color: dueBadge.color, fontWeight: '600',
+                              fontStyle: dueBadge.urgent ? 'normal' : 'italic',
+                            }}>
+                              {dueBadge.text}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }) : (
+                    <div style={{ padding: '28px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>
+                      No items for {child.name}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Family / unmatched messages */}
+        {familyMessages.length > 0 && (
+          <div style={{ padding: '0 28px 24px' }}>
+            <div style={{
+              background: 'white', borderRadius: '16px', overflow: 'hidden',
+              border: '1px solid #E2E8F0',
+            }}>
+              <div style={{
+                background: '#475569', padding: '20px 24px',
+                display: 'flex', gap: '14px', alignItems: 'center',
+              }}>
+                <div style={{
+                  width: '44px', height: '44px', borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '22px', flexShrink: 0,
+                }}>
+                  {'\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66'}
+                </div>
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Family</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                    General & unassigned {'\u00B7'} {familyMessages.length} item{familyMessages.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+              {familyMessages.map(msg => {
+                const dueBadge = getDueBadge(msg)
+                return (
+                  <div
+                    key={msg.id}
+                    onClick={() => setSelectedMessage(msg)}
+                    style={{
+                      padding: '14px 20px', borderTop: '1px solid #F1F5F9',
+                      cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'flex-start',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '8px',
+                      background: CATEGORY_ICON_BG[msg.category] || '#F1F5F9',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '16px', flexShrink: 0, marginTop: '2px',
+                    }}>
+                      {CATEGORY_ICONS[msg.category] || '\uD83D\uDCCB'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '13px', fontWeight: '600', color: '#1a2e4a', marginBottom: '3px',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {msg.subject}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B' }}>
+                        {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      {msg.key_dates?.[0] && (
+                        <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
+                          {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
+                        </div>
+                      )}
+                      {dueBadge && (
+                        <div style={{ fontSize: '10px', color: dueBadge.color, fontWeight: '600' }}>
+                          {dueBadge.text}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {messages.length === 0 && (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94A3B8' }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>{'\u2728'}</div>
+            <div style={{ fontSize: '16px' }}>All caught up!</div>
+          </div>
+        )}
       </div>
+
+      {/* Message detail modal overlay */}
+      {selectedMessage && (
+        <div
+          onClick={() => setSelectedMessage(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.4)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: '16px',
+              width: '90%', maxWidth: '620px', maxHeight: '80vh',
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            }}
+          >
+            {/* Modal header */}
+            <div style={{
+              padding: '16px 20px', borderBottom: '1px solid #E2E8F0',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: '#FAFBFC', flexShrink: 0,
+            }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#1a2e4a' }}>
+                Message Detail
+              </span>
+              <button
+                onClick={() => setSelectedMessage(null)}
+                style={{
+                  border: 'none', background: 'none', fontSize: '20px',
+                  cursor: 'pointer', color: '#64748B', padding: '4px 8px',
+                  borderRadius: '6px', lineHeight: 1,
+                }}
+              >
+                {'\u2715'}
+              </button>
+            </div>
+            <div style={{ overflow: 'auto', flex: 1 }}>
+              <MessageDetail message={selectedMessage} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
