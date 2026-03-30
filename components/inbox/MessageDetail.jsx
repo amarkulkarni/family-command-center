@@ -36,10 +36,50 @@ const URGENCY_LABELS = {
   LOW: '🔵 Informational',
 }
 
-export default function MessageDetail({ message }) {
+function getChannelType(message, connectors) {
+  if (message?.connector_id && connectors?.length) {
+    const c = connectors.find(x => x.id === message.connector_id)
+    const t = (c?.type || '').toUpperCase()
+    if (t === 'TWILIO_WHATSAPP') return 'whatsapp'
+    if (t.includes('GMAIL') || t.includes('EMAIL')) return 'email'
+  }
+  const addr = String(message?.from_address || '')
+  const lower = addr.toLowerCase()
+  if (lower.startsWith('whatsapp:') || /^\+?[\d\s\-()]{10,}$/.test(addr.replace(/\s/g, ''))) {
+    if (addr.includes('@')) return 'email'
+    return 'whatsapp'
+  }
+  if (addr.includes('@')) return 'email'
+  return 'email'
+}
+
+function waMeDigits(fromAddress) {
+  if (!fromAddress) return null
+  const raw = String(fromAddress).replace(/^whatsapp:/i, '').trim()
+  const digits = raw.replace(/\D/g, '')
+  return digits.length >= 10 ? digits : null
+}
+
+export default function MessageDetail({ message, connectors = [] }) {
+  const channel = getChannelType(message, connectors)
+  const fromAddr = message.from_address || ''
+  const senderLine =
+    channel === 'whatsapp'
+      ? [message.from_name, fromAddr].filter(Boolean).join(' · ')
+      : fromAddr || message.from_name || ''
+
+  const emailForMailto = fromAddr.includes('@') ? fromAddr : null
+  const waDigits = channel === 'whatsapp' ? waMeDigits(fromAddr) : null
+  const subjectRe = message.subject ? `Re: ${message.subject}` : 'Re: Message'
+  const mailtoHref =
+    emailForMailto != null
+      ? `mailto:${emailForMailto}?subject=${encodeURIComponent(subjectRe)}`
+      : null
+  const waPrefill = encodeURIComponent(subjectRe)
+  const waHref = waDigits ? `https://wa.me/${waDigits}?text=${waPrefill}` : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
       <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0', background: '#FAFBFC' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div
@@ -78,9 +118,30 @@ export default function MessageDetail({ message }) {
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-        {/* AI Summary */}
+        <div
+          style={{
+            fontSize: '13px',
+            color: '#334155',
+            marginBottom: '20px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid #E2E8F0',
+            lineHeight: '1.5',
+          }}
+        >
+          {channel === 'whatsapp' ? (
+            <>
+              <span style={{ marginRight: '6px' }}>{'\uD83D\uDCAC'}</span>
+              Via WhatsApp · {senderLine || 'Unknown sender'}
+            </>
+          ) : (
+            <>
+              <span style={{ marginRight: '6px' }}>{'\u2709\uFE0F'}</span>
+              Via Email · {senderLine || 'Unknown sender'}
+            </>
+          )}
+        </div>
+
         {message.summary && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
@@ -92,7 +153,6 @@ export default function MessageDetail({ message }) {
           </div>
         )}
 
-        {/* Action Items */}
         {message.action_items && message.action_items.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
@@ -125,7 +185,6 @@ export default function MessageDetail({ message }) {
           </div>
         )}
 
-        {/* Key Dates */}
         {message.key_dates && message.key_dates.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
@@ -162,7 +221,6 @@ export default function MessageDetail({ message }) {
           </div>
         )}
 
-        {/* Original Body */}
         {message.body_text && (
           <div>
             <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
@@ -186,6 +244,91 @@ export default function MessageDetail({ message }) {
               {message.body_text}
             </div>
           </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '16px 20px',
+          borderTop: '1px solid #E2E8F0',
+          background: '#FAFBFC',
+        }}
+      >
+        {channel === 'whatsapp' && waHref ? (
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              background: '#EAF3DE',
+              color: '#3B6D11',
+              boxSizing: 'border-box',
+            }}
+          >
+            Reply on WhatsApp
+          </a>
+        ) : channel === 'whatsapp' ? (
+          <span
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              background: '#F1F5F9',
+              color: '#94A3B8',
+              boxSizing: 'border-box',
+            }}
+          >
+            Reply on WhatsApp (number unavailable)
+          </span>
+        ) : mailtoHref ? (
+          <a
+            href={mailtoHref}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              background: '#E6F1FB',
+              color: '#185FA5',
+              boxSizing: 'border-box',
+            }}
+          >
+            Reply via email
+          </a>
+        ) : (
+          <span
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              background: '#F1F5F9',
+              color: '#94A3B8',
+              boxSizing: 'border-box',
+            }}
+          >
+            Reply via email (address unavailable)
+          </span>
         )}
       </div>
     </div>

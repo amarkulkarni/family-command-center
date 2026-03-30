@@ -686,7 +686,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
               </button>
             </div>
             <div style={{ overflow: 'auto', flex: 1 }}>
-              <MessageDetail message={selectedMessage} />
+              <MessageDetail message={selectedMessage} connectors={connectors} />
             </div>
           </div>
         </div>
