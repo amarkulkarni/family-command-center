@@ -3,19 +3,32 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function GET(request) {
   try {
-    // Verify cron secret
+    // Verify cron secret or authenticated user
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
     // Allow requests from Vercel cron (Authorization header) or manual trigger with secret
     const secretParam = request.nextUrl.searchParams.get('secret')
     const isVercelCron = request.headers.get('x-vercel-cron-secret') === cronSecret
-    const isAuthorized =
+    const isCronSecret =
       authHeader === `Bearer ${cronSecret}` ||
       isVercelCron ||
       secretParam === cronSecret
 
-    if (!isAuthorized) {
+    // Also allow authenticated Supabase users (for UI sync button)
+    let isUserAuth = false
+    if (!isCronSecret && authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '')
+      const userClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      )
+      const { data: { user } } = await userClient.auth.getUser()
+      isUserAuth = !!user
+    }
+
+    if (!isCronSecret && !isUserAuth) {
       return new Response('Unauthorized', { status: 401 })
     }
 
@@ -37,6 +50,7 @@ export async function GET(request) {
     }
 
     const familySpaceId = familySpaces[0].id
+    console.log('Syncing for family_space_id:', familySpaceId)
 
     // Sync Gmail
     const result = await syncGmailEmails(familySpaceId)

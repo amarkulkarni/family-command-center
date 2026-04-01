@@ -37,7 +37,7 @@ const CONNECTOR_INFO = {
       },
       {
         title: 'Send a message',
-        description: 'Text the bot anytime to add a task. Example: "dentist for Arjun April 15 3pm"',
+        description: 'Text the bot anytime to add a task. Example: "dentist appointment April 15 3pm"',
       },
       {
         title: 'Get confirmation',

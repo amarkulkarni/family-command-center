@@ -28,14 +28,20 @@ const CATEGORY_ICON_BG = {
   OTHER: '#FAEEDA',
 }
 
-const CHILDREN = [
-  { name: 'Arjun', color: '#127A66', accentLight: '#9FE1CB', dotColor: '#16A34A' },
-  { name: 'Priya', color: '#8C5414', accentLight: '#FAC775', dotColor: '#D97706' },
+const CHILD_PALETTE = [
+  { color: '#127A66', accentLight: '#9FE1CB', dotColor: '#16A34A' },
+  { color: '#8C5414', accentLight: '#FAC775', dotColor: '#D97706' },
+  { color: '#4338CA', accentLight: '#C7D2FE', dotColor: '#6366F1' },
+  { color: '#9D174D', accentLight: '#FBCFE8', dotColor: '#EC4899' },
 ]
 
-function matchChild(message) {
+function matchChild(message, childrenConfig) {
+  if (message.child_name) {
+    const match = childrenConfig.find(c => c.name.toLowerCase() === message.child_name.toLowerCase())
+    if (match) return match.name
+  }
   const text = `${message.subject || ''} ${message.summary || ''} ${(message.action_items || []).join(' ')}`.toLowerCase()
-  for (const child of CHILDREN) {
+  for (const child of childrenConfig) {
     if (text.includes(child.name.toLowerCase())) return child.name
   }
   return null
@@ -74,7 +80,11 @@ function keyDateInWeek(dateStr, weekStart, weekEnd) {
   return dd >= ws && dd <= we
 }
 
-export default function HorizonView({ messages, onSelectMessage }) {
+export default function HorizonView({ messages, onSelectMessage, children: dbChildren }) {
+  const CHILDREN = (dbChildren || []).map((c, i) => ({
+    name: c.name,
+    ...CHILD_PALETTE[i % CHILD_PALETTE.length],
+  }))
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(null)
 
   const today = new Date()
@@ -123,7 +133,7 @@ export default function HorizonView({ messages, onSelectMessage }) {
           const hasUrgent = weekItems.some(m => m.urgency === 'HIGH')
           const childDots = CHILDREN.map(child => {
             const hasItem = weekItems.some(m => {
-              const cn = matchChild(m)
+              const cn = matchChild(m, CHILDREN)
               return cn === child.name
             })
             return hasItem ? child : null
@@ -195,7 +205,7 @@ export default function HorizonView({ messages, onSelectMessage }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {displayedItems.map(msg => {
-            const childName = matchChild(msg)
+            const childName = matchChild(msg, CHILDREN)
             const childConfig = CHILDREN.find(c => c.name === childName)
             const dueDate = new Date(msg.key_dates[0].date)
             const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24))

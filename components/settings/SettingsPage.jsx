@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import Header from '../Header'
 import Channels from './Channels'
+import Children from './Children'
 
-export default function SettingsPage({ user, familySpaceId, familySpace, connectors }) {
-  const [activeTab, setActiveTab] = useState('channels')
+export default function SettingsPage({ user, familySpaceId, familySpace, connectors, children }) {
+  const [activeTab, setActiveTab] = useState('children')
 
   const firstName = user.user_metadata?.full_name?.split(' ')[0] || 'there'
   const avatar = user.user_metadata?.avatar_url
@@ -31,6 +32,7 @@ export default function SettingsPage({ user, familySpaceId, familySpace, connect
         }}
       >
         {[
+          { id: 'children', label: '👧 Children' },
           { id: 'channels', label: '📧 Connected Channels' },
           { id: 'invite', label: '🔗 Invite Code' },
         ].map((tab) => (
@@ -57,6 +59,14 @@ export default function SettingsPage({ user, familySpaceId, familySpace, connect
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '28px' }}>
+          {activeTab === 'children' && (
+            <Children
+              familySpaceId={familySpaceId}
+              children={children}
+              user={user}
+            />
+          )}
+
           {activeTab === 'channels' && (
             <Channels
               familySpaceId={familySpaceId}

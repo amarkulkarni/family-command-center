@@ -13,6 +13,7 @@ export default function Inbox() {
     familySpace: null,
     connectors: [],
     messages: [],
+    children: [],
     loading: true,
     error: null,
   })
@@ -57,14 +58,16 @@ export default function Inbox() {
           .eq('family_space_id', familySpaceId)
           .order('created_at')
 
-        // Fetch messages via API
+        // Fetch messages and children via API
         const { data: { session: currentSession } } = await supabase.auth.getSession()
-        const res = await fetch('/api/messages?limit=100', {
-          headers: {
-            'Authorization': `Bearer ${currentSession?.access_token}`,
-          },
-        })
-        const messagesData = await res.json()
+        const authHeaders = { 'Authorization': `Bearer ${currentSession?.access_token}` }
+
+        const [messagesRes, childrenRes] = await Promise.all([
+          fetch('/api/messages?limit=100', { headers: authHeaders }),
+          fetch('/api/children', { headers: authHeaders }),
+        ])
+        const messagesData = await messagesRes.json()
+        const childrenData = await childrenRes.json()
 
         setState({
           user,
@@ -72,6 +75,7 @@ export default function Inbox() {
           familySpace,
           connectors: connectors || [],
           messages: messagesData.messages || [],
+          children: childrenData.children || [],
           loading: false,
           error: null,
         })
@@ -99,6 +103,7 @@ export default function Inbox() {
       familySpace={state.familySpace}
       connectors={state.connectors}
       messages={state.messages}
+      children={state.children}
     />
   )
 }

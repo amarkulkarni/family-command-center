@@ -12,6 +12,7 @@ export default function Settings() {
     familySpaceId: null,
     familySpace: null,
     connectors: [],
+    children: [],
     loading: true,
     error: null,
   })
@@ -49,18 +50,25 @@ export default function Settings() {
           .eq('id', familySpaceId)
           .single()
 
-        // Get connectors
+        // Get connectors and children
         const { data: connectors } = await supabase
           .from('connectors')
           .select('id, type, display_name, status, last_received_at, owner_email')
           .eq('family_space_id', familySpaceId)
           .order('created_at')
 
+        const { data: { session: currentSession } } = await supabase.auth.getSession()
+        const childrenRes = await fetch('/api/children', {
+          headers: { 'Authorization': `Bearer ${currentSession?.access_token}` },
+        })
+        const childrenData = await childrenRes.json()
+
         setState({
           user,
           familySpaceId,
           familySpace,
           connectors: connectors || [],
+          children: childrenData.children || [],
           loading: false,
           error: null,
         })
@@ -87,6 +95,7 @@ export default function Settings() {
       familySpaceId={state.familySpaceId}
       familySpace={state.familySpace}
       connectors={state.connectors}
+      children={state.children}
     />
   )
 }

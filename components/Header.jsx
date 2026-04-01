@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -7,11 +8,38 @@ import { createClient } from '@/lib/supabase/client'
 export default function Header({ user, title, subtitle, showNav = true }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState(null)
 
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const handleSync = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/cron/sync-gmail', {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSyncResult({ ok: true, count: data.processed })
+        if (data.processed > 0) {
+          setTimeout(() => router.refresh(), 500)
+        }
+      } else {
+        setSyncResult({ ok: false, msg: data.error || 'Sync failed' })
+      }
+    } catch (err) {
+      setSyncResult({ ok: false, msg: err.message })
+    }
+    setSyncing(false)
+    setTimeout(() => setSyncResult(null), 3000)
   }
   const firstName = user.user_metadata?.full_name?.split(' ')[0] || 'there'
   const avatar = user.user_metadata?.avatar_url
@@ -93,6 +121,30 @@ export default function Header({ user, title, subtitle, showNav = true }) {
         >
           <NavLink href="/inbox" pathname={pathname} label="🏠 Home" />
           <NavLink href="/settings" pathname={pathname} label="⚙️ Settings" />
+          <div style={{ marginLeft: 'auto', paddingRight: '28px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              title="Sync Gmail"
+              style={{
+                background: 'none', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer',
+                fontSize: '18px', padding: '8px', borderRadius: '8px',
+                opacity: syncing ? 0.5 : 1,
+                animation: syncing ? 'spin 1s linear infinite' : 'none',
+                transition: 'opacity 0.2s',
+              }}
+            >
+              🔄
+            </button>
+            {syncResult && (
+              <span style={{
+                fontSize: '11px', fontWeight: '600',
+                color: syncResult.ok ? '#16A34A' : '#DC2626',
+              }}>
+                {syncResult.ok ? `${syncResult.count} new` : 'Error'}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </>

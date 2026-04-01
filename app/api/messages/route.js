@@ -10,26 +10,20 @@ export async function GET(request) {
       return new Response('Unauthorized', { status: 401 })
     }
 
-    const supabase = createSupabaseClient(
+    // Verify user with anon key
+    const anonClient = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      }
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
     )
 
-    // Verify user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await anonClient.auth.getUser()
     if (!user) {
       return new Response('Unauthorized', { status: 401 })
     }
 
     // Get user's family space
-    const { data: familyMember } = await supabase
+    const { data: familyMember } = await anonClient
       .from('family_members')
       .select('family_space_id')
       .eq('user_id', user.id)
@@ -48,6 +42,12 @@ export async function GET(request) {
 
     const offset = (page - 1) * limit
     const familySpaceId = familyMember.family_space_id
+
+    // Use service role to bypass RLS for reads (user already verified above)
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
 
     // Build base query with filters
     let countQuery = supabase
@@ -73,12 +73,14 @@ export async function GET(request) {
     }
 
     // Get total count with filters applied
-    const { count } = await countQuery
+    const { count, error: countError } = await countQuery
 
     // Fetch messages with pagination
     const { data: messages, error } = await dataQuery
       .order('received_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    console.log(`Messages API: familySpaceId=${familySpaceId}, count=${count}, countError=${JSON.stringify(countError)}, queryError=${JSON.stringify(error)}, returned=${messages?.length || 0}`)
 
     if (error) {
       console.error('Error fetching messages:', error)

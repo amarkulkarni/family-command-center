@@ -76,15 +76,35 @@ const CATEGORY_LABELS = {
   OTHER: 'Other',
 }
 
-// Hardcoded children config (will be replaced by database later)
-const CHILDREN = [
-  { name: 'Arjun', school: 'Dublin Elementary', grade: 'Grade 5', emoji: '\u26BE', color: '#127A66', accentLight: '#9FE1CB' },
-  { name: 'Priya', school: 'Kolb Elementary', grade: 'Grade 2', emoji: '\uD83D\uDC83', color: '#8C5414', accentLight: '#FAC775' },
+// Color palette for auto-assigning child column colors
+const CHILD_PALETTE = [
+  { color: '#127A66', accentLight: '#9FE1CB', emoji: '\u26BE' },
+  { color: '#8C5414', accentLight: '#FAC775', emoji: '\uD83D\uDC83' },
+  { color: '#4338CA', accentLight: '#C7D2FE', emoji: '\u2B50' },
+  { color: '#9D174D', accentLight: '#FBCFE8', emoji: '\uD83C\uDFA8' },
 ]
 
-function matchChild(message) {
+function buildChildrenConfig(dbChildren) {
+  return dbChildren.map((child, idx) => ({
+    name: child.name,
+    school: child.school || '',
+    grade: child.grade || '',
+    activities: child.activities || [],
+    emoji: CHILD_PALETTE[idx % CHILD_PALETTE.length].emoji,
+    color: CHILD_PALETTE[idx % CHILD_PALETTE.length].color,
+    accentLight: CHILD_PALETTE[idx % CHILD_PALETTE.length].accentLight,
+  }))
+}
+
+function matchChild(message, childrenConfig) {
+  // Prefer AI-assigned child_name from the database
+  if (message.child_name) {
+    const match = childrenConfig.find(c => c.name.toLowerCase() === message.child_name.toLowerCase())
+    if (match) return match.name
+  }
+  // Fallback: text-based matching
   const text = `${message.subject || ''} ${message.summary || ''} ${(message.action_items || []).join(' ')}`.toLowerCase()
-  for (const child of CHILDREN) {
+  for (const child of childrenConfig) {
     if (text.includes(child.name.toLowerCase())) return child.name
   }
   return null
@@ -101,17 +121,92 @@ function getDueBadge(message) {
   return { text: `In ${diffDays} days`, color: '#6B7280', urgent: false }
 }
 
-export default function InboxPage({ user, familySpaceId, familySpace, connectors, messages: initialMessages }) {
+export default function InboxPage({ user, familySpaceId, familySpace, connectors, messages: initialMessages, children: dbChildren }) {
+  const CHILDREN = buildChildrenConfig(dbChildren || [])
   const [messages, setMessages] = useState(initialMessages || [])
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [activeTab, setActiveTab] = useState('thisWeek')
   const [filters, setFilters] = useState({})
+  const [manageMode, setManageMode] = useState(false)
+  const [deleting, setDeleting] = useState({})
 
   useEffect(() => {
     if (initialMessages) {
       setMessages(initialMessages)
     }
   }, [initialMessages])
+
+  const getAuthToken = async () => {
+    const { createClient } = await import('@/lib/supabase/client')
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token
+  }
+
+  const deleteMessage = async (msgId) => {
+    setDeleting(d => ({ ...d, [msgId]: true }))
+    try {
+      const token = await getAuthToken()
+      const res = await fetch('/api/messages/delete', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: msgId }),
+      })
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== msgId))
+        if (selectedMessage?.id === msgId) setSelectedMessage(null)
+      }
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+    setDeleting(d => ({ ...d, [msgId]: false }))
+  }
+
+  const deleteAllMessages = async () => {
+    if (!confirm('Delete ALL messages? This cannot be undone.')) return
+    setDeleting(d => ({ ...d, _all: true }))
+    try {
+      const token = await getAuthToken()
+      const res = await fetch('/api/messages/delete', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        setMessages([])
+        setSelectedMessage(null)
+        setManageMode(false)
+      }
+    } catch (err) {
+      console.error('Delete all failed:', err)
+    }
+    setDeleting(d => ({ ...d, _all: false }))
+  }
+
+  const removeDuplicates = async () => {
+    setDeleting(d => ({ ...d, _dedup: true }))
+    try {
+      const token = await getAuthToken()
+      const res = await fetch('/api/messages/delete', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dedup: true }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        // Reload messages
+        const listRes = await fetch('/api/messages?limit=100', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        const data = await listRes.json()
+        setMessages(data.messages || [])
+      }
+    } catch (err) {
+      console.error('Dedup failed:', err)
+    }
+    setDeleting(d => ({ ...d, _dedup: false }))
+  }
 
   // Organize messages by urgency
   const urgent = messages.filter(m => m.urgency === 'HIGH').sort((a, b) => new Date(b.received_at) - new Date(a.received_at))
@@ -148,7 +243,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
   CHILDREN.forEach(c => { messagesByChild[c.name] = [] })
 
   messages.forEach(msg => {
-    const childName = matchChild(msg)
+    const childName = matchChild(msg, CHILDREN)
     if (childName && messagesByChild[childName]) {
       messagesByChild[childName].push(msg)
     } else {
@@ -169,7 +264,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
     .sort((a, b) => new Date(a.key_dates[0].date) - new Date(b.key_dates[0].date))[0]
 
   const summaryText = totalActionItems > 0
-    ? `${totalActionItems} item${totalActionItems !== 1 ? 's' : ''} this week across Arjun and Priya. ${urgent.length > 0 ? `${urgent.length} need${urgent.length === 1 ? 's' : ''} immediate attention.` : 'Nothing urgent right now.'}`
+    ? `${totalActionItems} item${totalActionItems !== 1 ? 's' : ''} this week${CHILDREN.length > 0 ? ` across ${CHILDREN.map(c => c.name).join(' and ')}` : ''}. ${urgent.length > 0 ? `${urgent.length} need${urgent.length === 1 ? 's' : ''} immediate attention.` : 'Nothing urgent right now.'}`
     : 'All caught up \u2014 no action items this week.'
 
   // Attention items: HIGH urgency + MEDIUM with dates, sorted by earliest date
@@ -221,6 +316,53 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
             }}>
               {urgent.length} need action today
             </div>
+          )}
+        </div>
+
+        {/* Manage toolbar */}
+        <div style={{ padding: '0 28px', marginTop: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={() => setManageMode(m => !m)}
+            style={{
+              padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+              border: manageMode ? '1px solid #DC2626' : '1px solid #E2E8F0',
+              background: manageMode ? '#FEF2F2' : 'white',
+              color: manageMode ? '#DC2626' : '#64748B',
+              cursor: 'pointer',
+            }}
+          >
+            {manageMode ? 'Done' : 'Manage'}
+          </button>
+          {manageMode && (
+            <>
+              <button
+                onClick={removeDuplicates}
+                disabled={deleting._dedup}
+                style={{
+                  padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+                  border: '1px solid #D97706', background: '#FFFBEB', color: '#D97706',
+                  cursor: deleting._dedup ? 'not-allowed' : 'pointer',
+                  opacity: deleting._dedup ? 0.6 : 1,
+                }}
+              >
+                {deleting._dedup ? 'Removing...' : 'Remove Duplicates'}
+              </button>
+              <button
+                onClick={deleteAllMessages}
+                disabled={deleting._all}
+                style={{
+                  padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+                  border: '1px solid #DC2626', background: '#FEF2F2', color: '#DC2626',
+                  cursor: deleting._all ? 'not-allowed' : 'pointer',
+                  opacity: deleting._all ? 0.6 : 1,
+                }}
+              >
+                {deleting._all ? 'Deleting...' : 'Delete All'}
+              </button>
+              <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                {messages.length} message{messages.length !== 1 ? 's' : ''}
+              </span>
+            </>
           )}
         </div>
 
@@ -283,7 +425,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
             </div>
             <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
               {attentionItems.map(msg => {
-                const childName = matchChild(msg)
+                const childName = matchChild(msg, CHILDREN)
                 const childConfig = CHILDREN.find(c => c.name === childName)
                 const dueBadge = getDueBadge(msg)
                 return (
@@ -295,7 +437,7 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                       background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0',
                       cursor: 'pointer',
                       borderLeft: `3px solid ${msg.urgency === 'HIGH' ? '#DC2626' : '#D97706'}`,
-                      flexShrink: 0,
+                      flexShrink: 0, position: 'relative',
                     }}
                   >
                     {/* Top row: due badge + child tag */}
@@ -358,6 +500,22 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                         {'\u2192'} {dueBadge.text}
                       </div>
                     )}
+                    {manageMode && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id) }}
+                        disabled={deleting[msg.id]}
+                        style={{
+                          position: 'absolute', top: '8px', right: '8px',
+                          width: '24px', height: '24px', borderRadius: '50%',
+                          border: 'none', background: '#DC2626', color: 'white',
+                          fontSize: '13px', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                          opacity: deleting[msg.id] ? 0.5 : 1,
+                        }}
+                      >
+                        {'\u2715'}
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -394,14 +552,37 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
 
         {activeTab === 'comingUp' && (
           <div style={{ padding: '24px 28px 32px' }}>
-            <HorizonView messages={messages} onSelectMessage={setSelectedMessage} />
+            <HorizonView messages={messages} onSelectMessage={setSelectedMessage} children={dbChildren} />
           </div>
         )}
 
         {activeTab === 'thisWeek' && (
         <>
         {/* Side-by-side child columns */}
-        <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+        {CHILDREN.length === 0 && messages.length > 0 && (
+          <div style={{ padding: '24px 28px' }}>
+            <div style={{
+              background: 'white', borderRadius: '12px', padding: '24px',
+              border: '1px solid #E2E8F0', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>👧👦</div>
+              <div style={{ fontSize: '14px', color: '#1a2e4a', fontWeight: '600', marginBottom: '4px' }}>
+                Add your children to organize messages
+              </div>
+              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '16px' }}>
+                Go to Settings to add your kids — emails will be grouped by child automatically.
+              </div>
+              <a href="/settings" style={{
+                padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                background: '#127A66', color: 'white', textDecoration: 'none',
+                display: 'inline-block',
+              }}>
+                Add children in Settings
+              </a>
+            </div>
+          </div>
+        )}
+        <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: `repeat(${Math.min(CHILDREN.length, 3) || 1}, 1fr)`, gap: '24px' }}>
           {CHILDREN.map(child => {
             const filteredMsgs = getFilteredMessages(child.name)
             const categories = getChildCategories(child.name)
@@ -527,20 +708,37 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                           </div>
                         </div>
 
-                        {/* Right side: date + due badge */}
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          {msg.key_dates?.[0] && (
-                            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
-                              {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
-                            </div>
-                          )}
-                          {dueBadge && (
-                            <div style={{
-                              fontSize: '10px', color: dueBadge.color, fontWeight: '600',
-                              fontStyle: dueBadge.urgent ? 'normal' : 'italic',
-                            }}>
-                              {dueBadge.text}
-                            </div>
+                        {/* Right side: date + due badge + delete */}
+                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div>
+                            {msg.key_dates?.[0] && (
+                              <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
+                                {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
+                              </div>
+                            )}
+                            {dueBadge && (
+                              <div style={{
+                                fontSize: '10px', color: dueBadge.color, fontWeight: '600',
+                                fontStyle: dueBadge.urgent ? 'normal' : 'italic',
+                              }}>
+                                {dueBadge.text}
+                              </div>
+                            )}
+                          </div>
+                          {manageMode && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id) }}
+                              disabled={deleting[msg.id]}
+                              style={{
+                                width: '22px', height: '22px', borderRadius: '50%',
+                                border: 'none', background: '#DC2626', color: 'white',
+                                fontSize: '11px', cursor: 'pointer', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                                opacity: deleting[msg.id] ? 0.5 : 1, flexShrink: 0,
+                              }}
+                            >
+                              {'\u2715'}
+                            </button>
                           )}
                         </div>
                       </div>
@@ -615,16 +813,33 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                         {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      {msg.key_dates?.[0] && (
-                        <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
-                          {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
-                        </div>
-                      )}
-                      {dueBadge && (
-                        <div style={{ fontSize: '10px', color: dueBadge.color, fontWeight: '600' }}>
-                          {dueBadge.text}
-                        </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div>
+                        {msg.key_dates?.[0] && (
+                          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '2px' }}>
+                            {new Date(msg.key_dates[0].date).toLocaleDateString('en-US', { weekday: 'short' })}
+                          </div>
+                        )}
+                        {dueBadge && (
+                          <div style={{ fontSize: '10px', color: dueBadge.color, fontWeight: '600' }}>
+                            {dueBadge.text}
+                          </div>
+                        )}
+                      </div>
+                      {manageMode && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id) }}
+                          disabled={deleting[msg.id]}
+                          style={{
+                            width: '22px', height: '22px', borderRadius: '50%',
+                            border: 'none', background: '#DC2626', color: 'white',
+                            fontSize: '11px', cursor: 'pointer', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                            opacity: deleting[msg.id] ? 0.5 : 1, flexShrink: 0,
+                          }}
+                        >
+                          {'\u2715'}
+                        </button>
                       )}
                     </div>
                   </div>
