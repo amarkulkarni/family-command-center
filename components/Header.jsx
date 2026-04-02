@@ -119,7 +119,7 @@ export default function Header({ user, title, subtitle, showNav = true, manageMo
             paddingLeft: '28px',
           }}
         >
-          <NavLink href="/inbox" pathname={pathname} label="🏠 Home" />
+          <NavLink href="/inbox" pathname={pathname} label="📋 Dashboard" />
           <NavLink href="/settings" pathname={pathname} label="⚙️ Settings" />
           <div style={{ marginLeft: 'auto', paddingRight: '28px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             {onManageToggle && (

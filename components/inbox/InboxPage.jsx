@@ -297,8 +297,8 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
     <div style={{ minHeight: '100vh', background: '#F7F5F0' }}>
       <Header
         user={user}
-        title="Home"
-        subtitle="Family Command Center"
+        title="Family Command Center"
+        subtitle=""
         showNav={true}
         manageMode={manageMode}
         onManageToggle={() => setManageMode(m => !m)}
