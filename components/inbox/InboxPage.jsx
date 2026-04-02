@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Header from '../Header'
 import MessageDetail from './MessageDetail'
 import HorizonView from './HorizonView'
+import { generateInsights } from '@/lib/insights'
 
 const CATEGORY_COLORS = {
   SCHOOL: '#DBEAFE',
@@ -276,6 +277,9 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
     })
     .slice(0, 6)
 
+  // Generate tiered insights
+  const insights = generateInsights(messages, CHILDREN)
+
   // Per-child filter helpers
   const getFilteredMessages = (childName) => {
     const msgs = messagesByChild[childName] || []
@@ -296,6 +300,8 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
         title="Home"
         subtitle="Family Command Center"
         showNav={true}
+        manageMode={manageMode}
+        onManageToggle={() => setManageMode(m => !m)}
       />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -319,52 +325,38 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
           )}
         </div>
 
-        {/* Manage toolbar */}
+        {/* Manage toolbar (visible when manage mode active) */}
+        {manageMode && (
         <div style={{ padding: '0 28px', marginTop: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
-            onClick={() => setManageMode(m => !m)}
+            onClick={removeDuplicates}
+            disabled={deleting._dedup}
             style={{
               padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
-              border: manageMode ? '1px solid #DC2626' : '1px solid #E2E8F0',
-              background: manageMode ? '#FEF2F2' : 'white',
-              color: manageMode ? '#DC2626' : '#64748B',
-              cursor: 'pointer',
+              border: '1px solid #D97706', background: '#FFFBEB', color: '#D97706',
+              cursor: deleting._dedup ? 'not-allowed' : 'pointer',
+              opacity: deleting._dedup ? 0.6 : 1,
             }}
           >
-            {manageMode ? 'Done' : 'Manage'}
+            {deleting._dedup ? 'Removing...' : 'Remove Duplicates'}
           </button>
-          {manageMode && (
-            <>
-              <button
-                onClick={removeDuplicates}
-                disabled={deleting._dedup}
-                style={{
-                  padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
-                  border: '1px solid #D97706', background: '#FFFBEB', color: '#D97706',
-                  cursor: deleting._dedup ? 'not-allowed' : 'pointer',
-                  opacity: deleting._dedup ? 0.6 : 1,
-                }}
-              >
-                {deleting._dedup ? 'Removing...' : 'Remove Duplicates'}
-              </button>
-              <button
-                onClick={deleteAllMessages}
-                disabled={deleting._all}
-                style={{
-                  padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
-                  border: '1px solid #DC2626', background: '#FEF2F2', color: '#DC2626',
-                  cursor: deleting._all ? 'not-allowed' : 'pointer',
-                  opacity: deleting._all ? 0.6 : 1,
-                }}
-              >
-                {deleting._all ? 'Deleting...' : 'Delete All'}
-              </button>
-              <span style={{ fontSize: '11px', color: '#94A3B8' }}>
-                {messages.length} message{messages.length !== 1 ? 's' : ''}
-              </span>
-            </>
-          )}
+          <button
+            onClick={deleteAllMessages}
+            disabled={deleting._all}
+            style={{
+              padding: '6px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+              border: '1px solid #DC2626', background: '#FEF2F2', color: '#DC2626',
+              cursor: deleting._all ? 'not-allowed' : 'pointer',
+              opacity: deleting._all ? 0.6 : 1,
+            }}
+          >
+            {deleting._all ? 'Deleting...' : 'Delete All'}
+          </button>
+          <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+            {messages.length} message{messages.length !== 1 ? 's' : ''}
+          </span>
         </div>
+        )}
 
         {/* AI Summary Banner */}
         <div style={{ margin: '20px 28px 0', borderRadius: '12px', overflow: 'hidden' }}>
@@ -384,17 +376,28 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
               }}>
                 {'\uD83E\uDD16'}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '10px', fontWeight: '700', color: '#9FE1CB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
-                  AI SUMMARY
+                  AI INSIGHT
                 </div>
-                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.5' }}>
-                  {summaryText}
+                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.5', marginBottom: insights.weeklyPulse.length > 0 ? '10px' : '0' }}>
+                  {insights.banner.text}
                 </div>
+                {insights.weeklyPulse.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px' }}>
+                    {insights.weeklyPulse.map((bullet, idx) => (
+                      <span key={idx} style={{
+                        fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: '500',
+                      }}>
+                        {bullet.icon} {bullet.text}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {mostUrgentWithDate && (
+            {mostUrgentWithDate && insights.banner.tone !== 'warning' && (
               <div
                 onClick={() => setSelectedMessage(mostUrgentWithDate)}
                 style={{
@@ -623,6 +626,11 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                   <span style={{ fontSize: '12px', color: child.accentLight, fontWeight: '600' }}>
                     {(messagesByChild[child.name] || []).length} items this week
                   </span>
+                  {insights.childStreaks[child.name] && (
+                    <span style={{ fontSize: '11px', color: child.accentLight, fontWeight: '600' }}>
+                      {insights.childStreaks[child.name].text} {'\u2713'}
+                    </span>
+                  )}
                   {childUrgent.length > 0 && (
                     <span style={{ fontSize: '12px', color: child.accentLight, fontWeight: '600' }}>
                       {childUrgent.length} action needed
@@ -724,6 +732,15 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                                 {dueBadge.text}
                               </div>
                             )}
+                            {!dueBadge && insights.inlineBadges[msg.id] && (
+                              <div style={{
+                                fontSize: '10px', fontWeight: '700', color: '#DC2626',
+                                background: 'rgba(220,38,38,0.1)', padding: '2px 8px',
+                                borderRadius: '8px',
+                              }}>
+                                {insights.inlineBadges[msg.id].overdueText}
+                              </div>
+                            )}
                           </div>
                           {manageMode && (
                             <button
@@ -823,6 +840,15 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                         {dueBadge && (
                           <div style={{ fontSize: '10px', color: dueBadge.color, fontWeight: '600' }}>
                             {dueBadge.text}
+                          </div>
+                        )}
+                        {!dueBadge && insights.inlineBadges[msg.id] && (
+                          <div style={{
+                            fontSize: '10px', fontWeight: '700', color: '#DC2626',
+                            background: 'rgba(220,38,38,0.1)', padding: '2px 8px',
+                            borderRadius: '8px',
+                          }}>
+                            {insights.inlineBadges[msg.id].overdueText}
                           </div>
                         )}
                       </div>

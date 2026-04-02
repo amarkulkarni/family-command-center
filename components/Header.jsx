@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function Header({ user, title, subtitle, showNav = true }) {
+export default function Header({ user, title, subtitle, showNav = true, manageMode, onManageToggle }) {
   const router = useRouter()
   const pathname = usePathname()
   const [syncing, setSyncing] = useState(false)
@@ -122,6 +122,21 @@ export default function Header({ user, title, subtitle, showNav = true }) {
           <NavLink href="/inbox" pathname={pathname} label="🏠 Home" />
           <NavLink href="/settings" pathname={pathname} label="⚙️ Settings" />
           <div style={{ marginLeft: 'auto', paddingRight: '28px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onManageToggle && (
+              <button
+                onClick={onManageToggle}
+                title={manageMode ? 'Done managing' : 'Manage messages'}
+                style={{
+                  background: manageMode ? '#FEF2F2' : 'none',
+                  border: manageMode ? '1px solid #DC2626' : 'none',
+                  cursor: 'pointer',
+                  fontSize: '18px', padding: '8px', borderRadius: '8px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {manageMode ? '✏️' : '✏️'}
+              </button>
+            )}
             <button
               onClick={handleSync}
               disabled={syncing}
