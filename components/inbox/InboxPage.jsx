@@ -6,6 +6,10 @@ import MessageDetail from './MessageDetail'
 import HorizonView from './HorizonView'
 import { generateInsights } from '@/lib/insights'
 
+function isWhatsAppMessage(msg) {
+  return !msg.subject && /^\+/.test(msg.from_address)
+}
+
 const CATEGORY_COLORS = {
   SCHOOL: '#DBEAFE',
   MEDICAL: '#FEE2E2',
@@ -472,10 +476,10 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
 
                     {/* Title + summary */}
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#1a2e4a', marginBottom: '4px', lineHeight: '1.3' }}>
-                      {msg.subject}
+                      {msg.subject || (msg.summary || '').substring(0, 60)}
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '14px', lineHeight: '1.4' }}>
-                      {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
+                      {msg.subject ? (msg.summary || '').substring(0, 80) + ((msg.summary || '').length > 80 ? '...' : '') : (msg.summary || '').substring(60, 140) + ((msg.summary || '').length > 140 ? '...' : '')}
                     </div>
 
                     {/* Bottom: action buttons + channel badge */}
@@ -491,9 +495,10 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                       </span>
                       <span style={{
                         fontSize: '10px', padding: '3px 10px', borderRadius: '10px',
-                        background: '#E6F1FB', color: '#185FA5',
+                        background: isWhatsAppMessage(msg) ? '#DCFCE7' : '#E6F1FB',
+                        color: isWhatsAppMessage(msg) ? '#16A34A' : '#185FA5',
                       }}>
-                        {'\u2709\uFE0F'} Email
+                        {isWhatsAppMessage(msg) ? '💬 WhatsApp' : '✉️ Email'}
                       </span>
                     </div>
 
@@ -701,17 +706,18 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                             fontSize: '13px', fontWeight: '600', color: '#1a2e4a', marginBottom: '3px',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>
-                            {msg.subject}
+                            {msg.subject || (msg.summary || '').substring(0, 50)}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
-                              {(msg.summary || '').substring(0, 60)}{(msg.summary || '').length > 60 ? '...' : ''}
+                              {msg.subject ? (msg.summary || '').substring(0, 60) + ((msg.summary || '').length > 60 ? '...' : '') : (msg.summary || '').substring(50, 110) + ((msg.summary || '').length > 110 ? '...' : '')}
                             </span>
                             <span style={{
                               fontSize: '9px', padding: '1px 6px', borderRadius: '8px',
-                              background: '#E6F1FB', color: '#185FA5', flexShrink: 0,
+                              background: isWhatsAppMessage(msg) ? '#DCFCE7' : '#E6F1FB',
+                              color: isWhatsAppMessage(msg) ? '#16A34A' : '#185FA5', flexShrink: 0,
                             }}>
-                              {'\u2709\uFE0F'}
+                              {isWhatsAppMessage(msg) ? '💬' : '✉️'}
                             </span>
                           </div>
                         </div>
@@ -824,10 +830,17 @@ export default function InboxPage({ user, familySpaceId, familySpace, connectors
                         fontSize: '13px', fontWeight: '600', color: '#1a2e4a', marginBottom: '3px',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {msg.subject}
+                        {msg.subject || (msg.summary || '').substring(0, 50)}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>
-                        {(msg.summary || '').substring(0, 80)}{(msg.summary || '').length > 80 ? '...' : ''}
+                      <div style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{msg.subject ? (msg.summary || '').substring(0, 80) + ((msg.summary || '').length > 80 ? '...' : '') : (msg.summary || '').substring(50, 130) + ((msg.summary || '').length > 130 ? '...' : '')}</span>
+                        <span style={{
+                          fontSize: '9px', padding: '1px 6px', borderRadius: '8px',
+                          background: isWhatsAppMessage(msg) ? '#DCFCE7' : '#E6F1FB',
+                          color: isWhatsAppMessage(msg) ? '#16A34A' : '#185FA5', flexShrink: 0,
+                        }}>
+                          {isWhatsAppMessage(msg) ? '💬' : '✉️'}
+                        </span>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>

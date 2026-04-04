@@ -1,5 +1,5 @@
 import twilio from 'twilio'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { parseTwilio } from '@/lib/inbound/parseTwilio'
 import { categorizeMessage } from '@/lib/ai/categorize'
 
@@ -51,7 +51,10 @@ export async function POST(req) {
       return new Response('OK', { status: 200 })
     }
 
-    const supabase = createClient()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
 
     // Find or create the Twilio connector
     let { data: connector } = await supabase
@@ -116,12 +119,12 @@ export async function POST(req) {
         from_name: parsed.fromName,
         received_at: parsed.receivedAt,
         raw_payload: parsed.rawPayload,
-        ai_processed: true,
-        ai_category: aiResult.category,
-        ai_summary: aiResult.summary,
-        ai_action_items: aiResult.actionItems,
-        ai_key_dates: aiResult.keyDates,
-        ai_urgency: aiResult.urgency,
+        category: aiResult.category,
+        urgency: aiResult.urgency,
+        summary: aiResult.summary,
+        action_items: aiResult.actionItems,
+        key_dates: aiResult.keyDates,
+        child_name: aiResult.childName,
       })
       .select()
       .single()
