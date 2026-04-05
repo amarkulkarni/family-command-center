@@ -15,5 +15,16 @@ SECURITY_NOTES.txt
 *.private.md
 
 # Private configuration
+.env
 .env.production.local
 secrets.json
+.vercel
+
+# Credential and key files
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+credentials.json
+service-account.json

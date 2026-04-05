@@ -27,8 +27,9 @@ export async function POST(request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // Generate invite code
-  const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+  // Generate cryptographically secure invite code
+  const crypto = require('crypto')
+  const inviteCode = crypto.randomBytes(4).toString('hex').toUpperCase()
 
   // Create family space
   const { data: space, error: spaceError } = await supabase
@@ -39,7 +40,7 @@ export async function POST(request) {
 
   if (spaceError) {
     console.error('Error creating family space:', spaceError)
-    return new Response(spaceError.message, { status: 500 })
+    return new Response('Failed to create family space', { status: 500 })
   }
 
   // Add user to family space
@@ -52,7 +53,7 @@ export async function POST(request) {
 
   if (memberError) {
     console.error('Error adding family member:', memberError)
-    return new Response(memberError.message, { status: 500 })
+    return new Response('Failed to add family member', { status: 500 })
   }
 
   return new Response(JSON.stringify({ inviteCode, spaceId: space.id }), {

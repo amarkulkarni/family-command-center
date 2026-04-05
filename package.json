@@ -18,5 +18,8 @@
     "react": "^18",
     "react-dom": "^18",
     "twilio": "^5.13.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
   }
 }

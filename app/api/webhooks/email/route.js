@@ -9,23 +9,26 @@ export async function POST(request) {
     const signature = request.headers.get('X-Webhook-Signature')
     const secret = process.env.WEBHOOK_SECRET
 
-    if (secret && signature) {
-      const body = await request.text()
-      const hash = crypto.createHmac('sha256', secret).update(body).digest('hex')
-      if (hash !== signature) {
-        return new Response('Invalid signature', { status: 401 })
-      }
-      // Re-parse body since we consumed it
-      const payload = JSON.parse(body)
-      return handleEmailWebhook(payload)
+    if (!secret) {
+      console.error('WEBHOOK_SECRET not configured')
+      return new Response('Server misconfigured', { status: 500 })
     }
 
-    // If no signature validation, accept the request (for testing)
-    const payload = await request.json()
+    if (!signature) {
+      return new Response('Missing signature', { status: 401 })
+    }
+
+    const body = await request.text()
+    const hash = crypto.createHmac('sha256', secret).update(body).digest('hex')
+    if (hash !== signature) {
+      return new Response('Invalid signature', { status: 401 })
+    }
+
+    const payload = JSON.parse(body)
     return handleEmailWebhook(payload)
   } catch (err) {
     console.error('Error in email webhook:', err)
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
   }
 }
 
@@ -86,12 +89,12 @@ async function handleEmailWebhook(payload) {
 
     if (insertError) {
       console.error('Error inserting message:', insertError)
-      return new Response(JSON.stringify({ error: insertError.message }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'Failed to store message' }), { status: 500 })
     }
 
     return Response.json({ success: true, externalId: parsed.externalId })
   } catch (err) {
     console.error('Error handling email webhook:', err)
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
   }
 }

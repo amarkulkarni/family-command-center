@@ -35,8 +35,8 @@ export async function GET(request) {
 
     // Parse query parameters
     const url = new URL(request.url)
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '20')
+    const page = Math.max(parseInt(url.searchParams.get('page') || '1') || 1, 1)
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '20') || 20, 1), 100)
     const category = url.searchParams.get('category')
     const connectorId = url.searchParams.get('connectorId')
 
@@ -84,7 +84,7 @@ export async function GET(request) {
 
     if (error) {
       console.error('Error fetching messages:', error)
-      return new Response(error.message, { status: 500 })
+      return new Response('Failed to fetch messages', { status: 500 })
     }
 
     const total = count || 0
@@ -97,6 +97,6 @@ export async function GET(request) {
     })
   } catch (err) {
     console.error('Error in messages endpoint:', err)
-    return new Response(err.message, { status: 500 })
+    return new Response('Internal server error', { status: 500 })
   }
 }
