@@ -1,0 +1,16 @@
+title = "Family Command Center Gitleaks Config"
+
+[allowlist]
+  description = "Safe placeholder values and non-secret patterns in committed files"
+  regexes = [
+    "your-.*-here",
+    "your_.*_here",
+    "your_.*@gmail\\.com",
+    "your-project\\.supabase\\.co",
+    "localhost:3000",
+  ]
+  paths = [
+    ".env.local.example",
+    "README.md",
+    "CLAUDE.md",
+  ]
