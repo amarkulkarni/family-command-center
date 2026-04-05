@@ -9,6 +9,29 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const supabase = createClient()
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (oauthError) {
+        setError(oauthError.message)
+        setLoading(false)
+      }
+    } catch (err) {
+      setError(err?.message || 'Login failed')
+      setLoading(false)
+    }
+  }
+
   const handleLogin = async () => {
     setLoading(true)
     setError(null)
@@ -25,7 +48,6 @@ export default function LoginPage() {
         return
       }
 
-      // Session is stored in localStorage - API calls will send token via Authorization header
       window.location.href = '/'
     } catch (err) {
       setError(err?.message || 'Login failed')
@@ -68,62 +90,95 @@ export default function LoginPage() {
           lineHeight: '1.6',
           marginBottom: '24px',
         }}>
-          Test login (local development)
+          {isLocal ? 'Test login (local development)' : 'Sign in to manage your family\'s tasks'}
         </p>
 
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="Email"
-          style={{
-            width: '100%',
-            padding: '12px',
-            marginBottom: '12px',
-            border: '1px solid #ddd',
-            borderRadius: '8px',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-          }}
-        />
+        {!isLocal && (
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              background: 'white',
+              color: '#333',
+              border: '1px solid #ddd',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              transition: 'background 0.2s',
+            }}
+            onMouseOver={e => !loading && (e.currentTarget.style.background = '#f8f8f8')}
+            onMouseOut={e => !loading && (e.currentTarget.style.background = 'white')}
+          >
+            <GoogleIcon />
+            {loading ? 'Redirecting...' : 'Sign in with Google'}
+          </button>
+        )}
 
-        <input
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          placeholder="Password"
-          style={{
-            width: '100%',
-            padding: '12px',
-            marginBottom: '20px',
-            border: '1px solid #ddd',
-            borderRadius: '8px',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-          }}
-          onKeyPress={e => e.key === 'Enter' && handleLogin()}
-        />
+        {isLocal && (
+          <>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Email"
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginBottom: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
 
-        <button
-          onClick={handleLogin}
-          disabled={loading || !password}
-          style={{
-            width: '100%',
-            padding: '14px 20px',
-            background: loading || !password ? '#ccc' : '#1a2e4a',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '15px',
-            fontWeight: '600',
-            cursor: loading || !password ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s',
-          }}
-          onMouseOver={e => !loading && password && (e.currentTarget.style.background = '#0f1f33')}
-          onMouseOut={e => !loading && password && (e.currentTarget.style.background = '#1a2e4a')}
-        >
-          {loading ? 'Signing in...' : 'Sign In'}
-        </button>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginBottom: '20px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+              onKeyPress={e => e.key === 'Enter' && handleLogin()}
+            />
+
+            <button
+              onClick={handleLogin}
+              disabled={loading || !password}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                background: loading || !password ? '#ccc' : '#1a2e4a',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: loading || !password ? 'not-allowed' : 'pointer',
+                transition: 'background 0.2s',
+              }}
+              onMouseOver={e => !loading && password && (e.currentTarget.style.background = '#0f1f33')}
+              onMouseOut={e => !loading && password && (e.currentTarget.style.background = '#1a2e4a')}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </>
+        )}
+
         {error && (
           <p style={{ color: 'red', fontSize: '14px', marginTop: '12px' }}>
             Error: {error}
