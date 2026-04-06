@@ -3,6 +3,9 @@ Before any code review or verification step, say "checking rules" out loud in yo
 
 Before touching any file, write one sentence explaining why this change is consistent with the project architecture.
 
+## Commit Workflow (Autonomous)
+When asked to commit and/or push: ALWAYS run design-review, QA, and `gitleaks detect --source . --no-git` inline BEFORE any shell commit command. See `.cursor/rules/commit-workflow.mdc` for the full protocol. Do NOT wait for the user to type /design-review or /qa — run them yourself as Steps 1–3 of the commit workflow.
+
 At the start of every conversation, read the memory index at ~/.claude/projects/-Users-amarkulkarni-claude-projects-family-command-center/memory/MEMORY.md and load any relevant memories before proceeding.
 
 Project-specific guidance for Family Command Center. See `~/.claude/CLAUDE.md` for global preferences and standards.
