@@ -5,7 +5,6 @@ import { categorizeMessage } from '@/lib/ai/categorize'
 
 export async function POST(req) {
   try {
-    const url = `${req.nextUrl.protocol}//${req.nextUrl.host}${req.nextUrl.pathname}`
     const signature = req.headers.get('x-twilio-signature')
 
     // Parse form data
@@ -13,14 +12,19 @@ export async function POST(req) {
     const params = Object.fromEntries(formData)
 
     // Validate Twilio signature
+    // Use the full public URL (Vercel internal URLs may differ from what Twilio sees)
+    const publicUrl = `https://family-command-center-blond.vercel.app${req.nextUrl.pathname}${req.nextUrl.search}`
     const isValid = twilio.validateRequest(
       process.env.TWILIO_AUTH_TOKEN,
       signature,
-      url,
+      publicUrl,
       params
     )
 
+    console.log(`[TWILIO] signature valid: ${isValid}, from: ${params.From}, url: ${publicUrl}`)
+
     if (!isValid) {
+      console.log('[TWILIO] Signature validation failed')
       return new Response('Forbidden', { status: 403 })
     }
 
